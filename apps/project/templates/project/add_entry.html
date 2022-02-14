@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Add time | {% endblock %}
+{% load coreextras %}
+{% block content %}
+    <section class="container" id="track-entry-app">
+        <div class="row justify-content-center align-items-center vh-100">
+            <div class="col-md-4">
+                <h1 style="text-align: center">Add Entry</h1>
+                <form class="form" method="post" action="." @submit="checkValid">
+                    {% csrf_token %}
+                <div class="form-control">
+                    <label class="form-label">Project<span class="text-danger">*</span></label>
+                        <select class="form-select" v-bind:class="{'border-danger': projectValid}" name="project" v-model="project" v-on:change="getTasks()" id="id_project">
+                            <option value="">Choose project</option>
+                            {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.title }}</option>
+                            {% endfor %}
+                        </select>
+                    <label class="form-label">Task<span class="text-danger">*</span></label>
+                        <select class="form-select" v-bind:class="{'border-danger': taskValid}" name="task" v-model="task">
+                            <option v-for="task in tasks" v-bind:key="task.id" :value="task.id">[[ task.title ]]</option>
+                        </select>
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" placeholder="max 100 characters" name="description" id="id_description" v-model="description"></textarea>
+                    <p class="" v-bind:class="{'text-danger': maxCharacters}">[[description.length]]/100</p>
+                    <div class="d-flex justify-content-center">
+                        <select class="form-select" v-model="optionHours"  v-bind:class="{'border-danger': timeValid}" style="width: 30%" id="id_hours" name="hours">
+                            <option value="0"{% if hours == 0  %} selected{% endif %}>0h</option>
+                            {% for i in 'x'|rjust:'10' %}
+                                <option value="{{ forloop.counter }}" {% if hours == forloop.counter %} selected{% endif %}>{{ forloop.counter }}h</option>
+                            {% endfor %}
+                        </select>
+                        <select class="form-select" v-model="optionMinutes"   v-bind:class="{'border-danger': timeValid}"style="width: 30%" id="id_minutes" name="minutes">
+                            <option value="0"{% if minutes == 0  %} selected{% endif %}>0m</option>
+                            {% for i in 'x'|rjust:'59' %}
+                                <option value="{{ forloop.counter }}" {% if minutes == forloop.counter %} selected{% endif %}>{{ forloop.counter }}m</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <label>Date</label>
+                    <input class="form-control" type="date" id="id_date" name="date" value="{{ time|date:'Y-m-d' }}" placeholder="yyyy-mm-dd">
+                    <div class="form-label d-flex justify-content-end">
+                        <button class="btn btn-success mt-2" v-bind:class="{disabled: maxCharacters}" type="submit">
+                            Submit
+                        </button>
+                    </div>
+                </div>
+                </form>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block script %}
+<script>
+    const TrackEntryApp = {
+        data() {
+            return {
+                tasks: [
+                    {'id': '', 'title': 'Select project first'}
+                ],
+                project: '',
+                task: '',
+                description: '',
+                projectValid: false,
+                taskValid: false,
+                optionHours: 0,
+                optionMinutes: 0,
+                timeValid: false
+            }
+        },
+        delimiters: ['[[', ']]'],
+        computed: {
+                maxCharacters: function(){
+                    if(this.description.length>100){
+                        return true
+                    }
+                },
+            },
+        methods: {
+            getTasks() {
+                if(this.project !== '') {
+                    fetch('/api/get_tasks/?project_id='+this.project , {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then((response) => {
+                        return response.json()
+                    })
+                    .then((result) => {
+                        this.tasks = result.tasks
+                        this.tasks.unshift({'id': '', 'title': 'Select task'})
+                    })
+                } else {
+                    this.tasks = [{'id': '', 'title': 'Select project first'}]
+                    this.task = ''
+                }
+            },
+            checkValid(e) {
+                if (this.optionMinutes === 0 && this.optionHours === 0) {
+                    this.timeValid = true
+                    e.preventDefault();
+                } else {
+                    this.timeValid = false
+                }
+                if (this.task === '' && this.project === '') {
+                    this.taskValid = true
+                    this.projectValid = true
+                    e.preventDefault();
+                } else if (this.task === '') {
+                    this.taskValid = true
+                    this.projectValid = false
+                    e.preventDefault()
+                } else if (this.project === '') {
+                    this.taskValid = false
+                    this.projectValid = true
+                    e.preventDefault()
+                }
+                this.taskValid = false
+                this.projectValid = false
+        }
+    }
+}
+    Vue.createApp(TrackEntryApp).mount('#track-entry-app')
+</script>
+{% endblock %}

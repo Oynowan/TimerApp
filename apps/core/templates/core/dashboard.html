@@ -1,0 +1,995 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard | {% endblock %}
+
+{% load coreextras %}
+
+{% block content %}
+    <section class="container-fluid mt-2">
+        <div class="column">
+            {% if request.user.userprofile.is_ceo or request.user.userprofile.is_ceo %}
+            <div class="col-md-12 d-flex justify-content-center">
+                <div class="alert bg-secondary" style="width: 60%">
+                    <form class="form" method="post" action=".">
+                        {% csrf_token %}
+                        <input class="form-control" id="search" name="search" type="text" placeholder="Search for user...">
+                        <button type="submit" hidden></button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-8">
+                <h1 class="display-3">DASHBOARD</h1>
+            </div>
+        </div>
+         <hr>
+    </section>
+    <section class="container mb-5" id="calendar-app">
+        <!-- Calendar -->
+        <div class="row">
+           <div class="col">
+                <callendar year="{{ date_user.year }}" month="{{date_user.month}}" user_id="{{request.user.id}}"></callendar>
+           </div>
+       </div>
+   </section>
+    <section class="container mt-5" id="dashApp">
+        <div class="column mt-5">
+            <!-- Working time for a choosen day -->
+            <div class="col">
+                <div class="column">
+                <div class="col alert alert-secondary">
+                <div class="d-flex justify-content-between">
+                    <h1>Your time {% if num_days is 0 %}today{% else %}{{ date_user|date:'Y-m-d' }}{% endif %}</h1>
+                <div><a href="{% url 'project:add_entry' %}" class="btn button-blue" style="height: auto">Add entry</a></div>
+                </div>
+                <div>
+                    <form method="post" action=".">
+                        {% csrf_token %}
+                        <div class="d-flex">
+                            <input class="form-control me-3" style="width: auto" type="date" id="id_date" name="date" value="{{ date_user|date:'Y-m-d' }}">
+                            <button type="submit" class="btn button-blue btn-sm">GO</button>
+                        </div>
+                    </form>
+                </div>
+                {% if date_entries %}
+                    <div class="table-responsive" style="height: 100%">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Task</th>
+                                    <th>Note</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in date_entries %}
+                                    <tr>
+                                        <td>{{ entry.project }}</td>
+                                        <td>{{ entry.task }}</td>
+                                        <td>{{ entry.note }}</td>
+                                        <td>{{ entry.minutes|format_minutes }}</td>
+                                        {% if entry.checked == False and entry.approved == False %}
+                                            <td><p style="color: #dd7f3c">Waiting</p></td>
+                                        {% elif entry.checked == True and entry.approved == False %}
+                                            <td><p class="text-danger">Disapproved</p></td>
+                                        {% else %}
+                                            <td><p class="text-success">Approved</p></td>
+                                        {% endif %}
+                                        <td>
+                                            <div class="dropdown dropstart">
+                                                <button class="btn btn-light dropdown-toggle" type="button" id="dropdownMenuButton{{ entry.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <ion-icon name="settings-outline"></ion-icon>
+                                                </button>
+                                                <ul class="dropdown-menu bg-secondary" aria-labelledby="dropdownMenuButton{{ entry.id }}">
+                                                    <!--<li style="text-align: center"><a href="#" style="text-decoration: none" class="text-info">Edit</a></li>-->
+                                                    <li style="text-align: center">
+                                                        <a style="text-decoration: none" class="text-warning me-5 ms-5" type="button" data-bs-toggle="modal" data-bs-target="#deleteTimeModal">
+                                                            Delete
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <div class="modal fade" tabindex="-1" id="deleteTimeModal" aria-labelledby="deleteTimeModalLabel" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="deleteTimeModalLabel">Entry Time - {{ entry.minutes|format_minutes }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="d-flex justify-content-center">
+                                                        <p>Are you sure you want to delete that entry?</p>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" aria-label="Close">Cancel</button>
+                                                    <a href="{% url 'project:delete_entry' entry.id %}" class="btn btn-sm btn-warning">Delete</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td>Total:</td>
+                                    <td>{{ time_for_user_and_date|format_minutes }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <p>No entries</p>
+                {% endif %}
+                <a href="?num_days={{ num_days|add:'1' }}" class="mt-4">Previous</a>
+                {%  if num_days > 0 %}
+                    <a href="?num_days={{ num_days|add:'-1' }}" class="mt-4">Next</a>
+                {% endif %}
+                </div>
+                <div class="col">
+                    <div class="alert alert-secondary">
+                    <h1>Untracked time</h1>
+                    {% if no_tracked_entries %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Date
+                                </th>
+                                <th>
+                                    Worked time
+                                </th>
+                                <th>
+                                    Status
+                                </th>
+                                <th>
+
+                                </th>
+                                <th>
+
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                                {% for entry in no_tracked_entries %}
+                                    <tr>
+                                        <td>
+                                            {{ entry.created_at|date:'Y-m-d' }}
+                                        </td>
+                                        <td>
+                                            {{ entry.minutes|format_minutes }}
+                                        </td>
+                                        {% if entry.minutes == 0 %}
+                                        <td>
+                                            In progress
+                                        </td>
+                                            <td></td>
+                                            <td></td>
+                                        {% else %}
+                                            <td>
+                                            Finished
+                                            </td>
+
+                                        <td>
+                                            <a href="{% url 'track_entry' entry.id %}" class="btn btn-sm button-blue">Add to task</a>
+                                        </td>
+                                        <td>
+                                        <button class="btn btn-sm btn-warning me-5 ms-5" type="button" data-bs-toggle="modal" data-bs-target="#deleteUntrackedTimeModal">
+                                            Delete
+                                        </button>
+                                        <div class="modal fade" tabindex="-1" id="deleteUntrackedTimeModal" aria-labelledby="deleteUntrackedTimeModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                            <h5 class="modal-title" id="deleteTimeModalLabel">Entry time: {{ entry.minutes|format_minutes }}</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="d-flex justify-content-center">
+                                                            <p>Are you sure you want to delete that entry?</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" aria-label="Close">Cancel</button>
+                                                        <a href="{% url 'project:delete_entry' entry.id %}" class="btn btn-sm btn-warning">Delete</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                                <p>No untracked entries</p>
+                        {% endif %}
+                </div>
+                </div>
+            </div>
+                </div>
+            <div class="col">
+            <div class="row justify-content-between">
+                    <div class="col-md-9">
+                    <div class="alert alert-secondary">
+                        <h1>Your time {% if user_num_months is 0 %}this month{% else %}{{ user_month|date:'Y-m' }}{% endif %}</h1>
+                    {% if time_for_user_and_month %}
+                        <div class="table-responsie">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Project</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in all_projects %}
+                                        <tr>
+                                            <td>{{ project.title }}</td>
+                                            <td>{{ project.time_for_user_and_project_and_month|format_minutes }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="">
+                                        <td>
+                                            <div class="text-primary">Total: {{ time_for_user_and_month|format_minutes }}</div>
+                                            {% if time_for_user_and_month_approved != 0 %}
+                                                <div class="text-success">Approved: {{ time_for_user_and_month_approved|format_minutes }}</div>
+                                            {% endif %}
+                                            {% if time_for_user_and_month_disapproved != 0 %}
+                                                <div class="text-danger">Disapproved: {{ time_for_user_and_month_disapproved|format_minutes }}</div>
+                                            {% endif %}
+                                            {% if time_for_user_and_month_waiting != 0 %}
+                                                <div style="color: #dd7f3c">Waiting: {{ time_for_user_and_month_waiting|format_minutes }}</div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p>No entries</p>
+                    {% endif %}
+                    <a href="?user_num_months={{ user_num_months|add:'1' }}" class="mt-4">Previous</a>
+                    {%  if user_num_months > 0 %}
+                        <a href="?user_num_months={{ user_num_months|add:'-1' }}" class="mt-4">Next</a>
+                    {% endif %}
+                    </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <canvas id="myChart" width="200px" height="200px"></canvas>
+                    </div>
+                    </div>
+            </div>
+        </div>
+    </section>
+    <style>
+        #calendar-app .row > * {
+            padding-right: 0 !important;
+            padding-left: 0 !important;
+        }
+        #calendar-app ion-icon {
+            font-size: 25px;
+            color: #fff
+        }
+        .calendar-bg {
+            background-color:  #5d6d7e !important;
+            margin: auto;
+        }
+        .calendar-bg .row {
+            height: 120px;
+            overflow: hidden
+        }
+
+        .calendar-body {
+            width: 100%;
+            margin:auto
+        }
+        .calendar-header {
+            width: 100%;
+            margin: auto;
+        }
+        .calendar-header-radius {
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        .calendar-wrapper {
+            /* min-height: 85vh; */
+            max-height: 0px;
+            overflow: hidden;
+            transition: .5s linear all;
+        }
+
+        .calendar-wrapper-show {
+            overflow: visible;
+            min-height: 85vh;
+            max-height: 150vh
+        }
+        .day-container {
+            height: 100%;
+            width: 100%;
+            border-top: 1px solid #5d6d7e;
+            border-bottom: 1px solid #5d6d7e;
+            padding: 0;
+        }
+        .day-container-header {
+            border-left: 1px solid rgba( 68, 76, 84, 0.25)
+        }
+        .day-content {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .day-content .p_number {
+            margin: 5px;
+            padding: 5px;
+            width: 30px;
+            height: 30px;
+            border-radius: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center
+        }
+        .today_dot {
+            background:  #7fb3d5
+        }
+        .modal-event {
+            display: flex; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 50; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center
+        }
+        .modal-wrapper {
+            color: #000;
+            background-color: #fefefe;
+            margin: 10% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%; /* Could be more or less, depending on screen size */
+            border-radius: 20px;
+        }
+        .show {
+            display: flex !important;
+        }
+        .hide {
+            display: none !important;
+        }
+        .close {
+            color: #aaa;
+            z-index: 5;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .event-wrapper {
+            height: 65%;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: scroll;
+        }
+        .event { 
+            
+            width: 100%;
+            margin: 0.1rem 0;
+        }
+        .event-content {
+            transition: 0.3s ease;
+        }
+        .event p {
+            margin: 0;
+            padding-left: 5px
+        }
+        .event-content:hover {
+            -webkit-box-shadow: 4px 5px 15px 0px rgba(0,0,0,0.56); 
+            box-shadow: 4px 5px 15px 0px rgba(0,0,0,0.56);
+        }
+        .event_plus {
+            margin: 5px;
+            font-size: 1.2rem;
+        }
+        .event-longer {
+            content: " ";
+            width: 100% !important;
+        }
+        .event-bussy {
+            background-color:  #ec7063;
+        }
+        .button-blue {
+            background-color:   #2e86c1 ;
+            color: #fff
+        }
+        .event-normal {
+            background-color:   #2e86c1 ;
+            color: #fff
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+{% endblock %}
+
+{% block script %}
+<script>
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var myChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: {{ all_projects_title|safe }},
+            datasets: [{
+                label: 'time',
+                data: {{ all_projects_time|safe }},
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                    'rgba(255, 159, 64, 0.2)',
+                    'rgba( 0, 196, 39, 0.2)',
+                    'rgba( 236, 45, 251, 0.2)',
+                    'rgba( 202, 104, 22 , 0.2)',
+                    'rgba( 22, 28, 202 , 0.2)',
+                    'rgba(203, 34, 124 , 0.2)',
+                    'rgba( 32, 179, 188  , 0.2)',
+                    'rgba( 249, 249, 40 , 0.2)',
+                    'rgba( 119, 249, 40 , 0.2)',
+                    'rgba( 0, 140, 232 , 0.2)',
+                    'rgba( 162, 162, 162  , 0.2)',
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)',
+                    'rgba( 0, 196, 39, 1)',
+                    'rgba( 236, 45, 251, 1)',
+                    'rgba(202, 104, 22, 1)',
+                    'rgba( 22, 28, 202, 1)',
+                    'rgba( 203, 34, 124 , 1)',
+                    'rgba( 32, 179, 188  , 1)',
+                    'rgba( 249, 249, 40  , 1)',
+                    'rgba( 119, 249, 40  , 1)',
+                    'rgba(  0, 140, 232   , 1)',
+                    'rgba( 162, 162, 162 , 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            legend: {
+                labels: {
+                    fontColor: "#f8f9fa"
+                }
+            }
+        }
+    });
+
+    const ProjectsApp = {
+            data() {
+                return {
+                }
+            },
+            delimiters: ['[[',']]'],
+            methods: {
+                
+            }
+        }
+
+    const app = Vue.createApp(ProjectsApp)
+
+        app.component('callendar', {
+            props: {
+                year: String,
+                month: String,
+                user_id: String
+            },
+            data() {
+                return {
+                    year_: this.year,
+                    month_: this.month,
+                    today: new Date().toISOString().slice(0, 10),
+                    first_day: new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() - 1 < 0 ? 6 : new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() - 1,
+                    days_in_month: new Date(this.year, this.month, 0).getDate(),
+                    days_last_month: this.getLastMonthDays(),
+                    other_date: '',
+                    events: [],
+                    calendar_array: [],
+                    calendarShow: false,
+                    calendarStyle: {
+                        maxHeight: '0px',
+                        overflow: 'hidden',
+                        width: "90%",
+                        margin: 'auto'
+                    },
+                    showModal: false,
+                    showModalEvent: false,
+                    textEvent: '',
+                    isBussy: false,
+                    dateEvent: null,
+                    durration: 1
+                }
+            },
+            delimiters: ['[[', ']]'],
+            async mounted() {
+                var data = {
+                        'month': this.month_,
+                        'year': this.year_
+                    }
+                var response = await fetch('/api/get_events_for_month/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                var body = await response.json()
+                body.events.forEach(event => {
+                    this.events.push(event)
+                })
+                this.calendar_month()
+                this.add_events_to_cal()
+            },
+            methods: {
+                async api_get_events() {
+                    const data = {
+                        'month': this.month_,
+                        'year': this.year_
+                    }
+                    const response = await fetch('/api/get_events_for_month/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}',
+                            },
+                            body: JSON.stringify(data)
+                        })
+                    const body = await response.json()
+                    body.events.forEach(event => {
+                        this.events.push(event)
+                    })
+                    this.calendar_month()
+                    this.add_events_to_cal()
+                },
+                changeMonth(dir) {
+                    if (dir === 'before') {
+                        if (this.month_ - 1 < 1) {
+                        this.year_ = Number(this.year_) - 1
+                        this.month_ = 12
+                        } else {
+                            this.month_ = Number(this.month_) - 1
+                        }
+                    } else if(dir==='after') {
+                        if (Number(this.month_) + 1 > 12) {
+                        this.year_ = Number(this.year_ ) + 1
+                        this.month_ = 1
+                        } else {
+                            this.month_ = Number(this.month_) + 1
+                        }
+                    } else if (dir==='today') {
+                        this.month_ = Number(this.today.slice(5,7))
+                        this.year_ = Number(this.today.slice(0, 4))
+                    }
+                    this.first_day = new Date(Number(this.year_), Number(this.month_)-1, 1).getDay() - 1
+                    this.days_in_month = new Date(this.year_, this.month_, 0).getDate()
+                    this.days_last_month = this.getLastMonthDays()
+                    this.calendar_array = []
+                    this.events = []
+                    this.api_get_events()
+                },
+                isToday(year, month, day) {
+                    var date
+                    if (month < 10) {
+                        date = `${year}-0${month}-${day}`
+                    } else {
+                        date = `${year}-${month}-${day}`
+                    }
+                    
+                    if(this.today === date) {
+                        return true
+                    } else {
+                        return false
+                    }
+                },
+                clickShowModalEvent(id, day, month, year) {
+                    if (month === this.month_) {
+                        this.showModalEvent = id
+                        this.dateEvent = `${year}-${month}-${day}`
+                        this.textEvent = ''
+                        this.isBussy = false
+                    } else if (month < this.month_) {
+                        this.changeMonth('before')
+                    } else if (month > this.month_) {
+                        this.changeMonth('after')
+                    } else {
+                        this.changeMonth('today')
+                    }
+                },
+                clickShowModal(id, day, month, year) {
+                    if (month === this.month_) {
+                        this.showModal = id
+                        this.dateEvent = `${year}-${month}-${day}`
+                        this.textEvent = ''
+                        this.isBussy = false
+                        this.durration = 1
+                    } else if (month < this.month_) {
+                        this.changeMonth('before')
+                    } else if (month > this.month_) {
+                        this.changeMonth('after')
+                    } else {
+                        this.changeMonth('today')
+                    }
+                },
+                getLastMonthDays() {
+                    var last_month = Number(this.month) - 1
+                    if (last_month === 0) {
+                        return new Date(this.year - 1, 12, 0).getDate()
+                    } else {
+                        return new Date(this.year, last_month, 0).getDate()
+                    }
+                },
+                calendar_month() {
+                    cal_array = []
+                    days = 1
+                    next_days = 1
+                    first_array = []
+                    for(i=0; i<7; i++) {
+                        if (i<this.first_day) {
+                            day = this.days_last_month - (this.first_day - i - 1)
+                            month = `${Number(this.month_)-1}`
+                            id = day + month + this.year_
+                            day = {
+                                id: id,
+                                day: day,
+                                month: month,
+                                year: this.year_,
+                                events: [],
+                                this_month: false
+                            }
+                            first_array.push(day)
+                        } else if (this.first_day < 0 && i < 6){
+                            day = this.days_last_month - (6 - i - 1)
+                            month = `${Number(this.month_)-1}`
+                            id = day + month + this.year_
+                            day = {
+                                id: id,
+                                day: day,
+                                month: month,
+                                year: this.year_,
+                                events: [],
+                                this_month: false
+                            }
+                            first_array.push(day)
+                        } else {
+                            day = days
+                            id = day + this.month_ + this.year_
+                            day = {
+                                id: id,
+                                day: days,
+                                month: this.month_,
+                                year: this.year_,
+                                events: [],
+                                this_month: true
+                            }
+                            first_array.push(day)
+                            days++
+                        }
+                    }
+                    cal_array.push(first_array)
+                    while (true) {
+                        week = []
+                        for(i=0; i<7;i++){
+                            if(days<=this.days_in_month) {
+                                day = days
+                                id = day + this.month_ + this.year_
+                                day = {
+                                    id: id,
+                                    day: days,
+                                    month: this.month_,
+                                    year: this.year_,
+                                    events: [],
+                                    this_month: true
+                                }
+                                week.push(day)
+                            } else {
+                                day = next_days
+                                month = `${Number(this.month_)+1}`
+                                id = `${day}${month}${this.year_}`
+                                day = {
+                                    id: id,
+                                    day: next_days,
+                                    month: month,
+                                    year: this.year_,
+                                    events: [],
+                                    this_month: false
+                                }
+                                week.push(day)
+                                next_days++
+                            }
+                            days++
+                        }
+                        cal_array.push(week)
+                        if (days > this.days_in_month) {
+                            break
+                        }
+                    }
+                    this.calendar_array = cal_array
+                },
+                add_events_to_cal() {
+                    calendar = this.calendar_array
+                    this.events.forEach(event => {
+                        day_index = this.first_day + (new Date(event.date).getDate() - 1) < 0 ? 6 : this.first_day + (new Date(event.date).getDate() - 1) 
+                        week = 0
+                        correct = false
+                        while(day_index >= 7) {
+                            day_index = day_index - 7
+                            week++
+                        }
+                        if (week === 0) {
+                            this.calendar_array[week].every((element,  index) => {
+                                event_day = new Date(event.date).getDate()
+                                if (element.day === event_day) {
+                                    correct = true
+                                    return false
+                                } else {
+                                    return true
+                                }
+                            })
+                        } else {
+                            correct = true
+                        }
+                        if (correct) {
+                          
+                            if (event.longer) {
+                                if (this.calendar_array[week][day_index].events[0] !== undefined) {
+                                    if (Number(this.calendar_array[week][day_index].events[0].time) <= Number(event.time)) {
+                                        this.calendar_array[week][day_index].events.unshift(event)
+                                    } else {
+                                    this.calendar_array[week][day_index].events.push(event)
+                                    }
+                                } else {
+                                    this.calendar_array[week][day_index].events.push(event)
+                                }
+                                
+                            } else {
+                                this.calendar_array[week][day_index].events.push(event)
+                            }
+                        
+                        } else {
+                            if (event.longer) {
+                                if (this.calendar_array[week+1][day_index].events[0] !== undefined) {
+                                    if (Number(this.calendar_array[week+1][day_index].events[0].time) <= Number(event.time)) {
+                                        this.calendar_array[week+1][day_index].events.unshift(event)
+                                    } else {
+                                        this.calendar_array[week+1][day_index].events.push(event)
+                                    }   
+                                } else {
+                                    this.calendar_array[week+1][day_index].events.push(event)
+                                }
+                                
+                            } else {
+                                this.calendar_array[week+1][day_index].events.push(event)
+                            }
+                        }
+                    })
+                    this.events = []
+                },
+                add_new_event(e) {
+                    const data = {
+                        'user_id': '{{request.user.id}}',
+                        'text': this.textEvent,
+                        'bussy': this.isBussy,
+                        'date': this.dateEvent,
+                        'durration': this.durration
+                    }
+                    fetch('/api/add_new_event/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => {
+                        return response.json()
+                    })
+                    .then(data => {
+                        this.showModal = false
+                        data.events.forEach(event => {
+                            this.events.push(event)
+                        })
+                        this.add_events_to_cal()
+                    })
+                    e.preventDefault()
+                },
+                delete_event(id) {
+                    const data={
+                        'event_id': id,
+                        'user_id': '{{request.user.id}}'
+                    }
+                    fetch('/api/delete_event/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{csrf_token}}'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => {
+                        return response.json()
+                    })
+                    .then(data => {
+                        if (data.message === 'success') {
+                            this.api_get_events()
+                            this.showModalEvent = false
+
+                        }
+                    })
+                },
+                showCalendar() {
+                    if (!this.calendarShow) {
+                        this.calendarStyle.maxHeight = '120vh'
+                        this.calendarStyle.overflow = 'visible'
+                        this.calendarShow = true
+                    } else {
+                        this.calendarStyle.maxHeight = '0px'
+                        this.calendarStyle.overflow = 'hidden'
+                        this.calendarShow = false
+                    }
+                }
+            },
+            // class="calendar-wrapper mt-5" v-bind:class="{'calendar-wrapper-show': calendarShow }" 
+            template: `
+            <div class="container mb-5">
+                <div class="row">
+                    <div class="col">
+                        <button class="btn btn-small btn-dark" v-on:click="showCalendar">Show Calendar</button>
+                    </div>
+                </div>
+            </div>
+            <div v-bind:style="calendarStyle" style="transition: max-height .5s linear ">
+                    <div class="calendar-header">
+                        <div class="row justify-content-between calendar-bg text-light calendar-header-radius">
+                            <div class="col-4" style="padding-left: 10px !important">
+                                <h1 style="color:#fff">[[year_]]-[[month_]]</h1>
+                            </div>
+                            <div class="col-4 justify-content-center d-flex">
+                                
+                            </div>
+                            <div class="col-4 justify-content-around d-flex">
+                               <div class="col justify-content-around d-flex align-items-center">
+                                   <div><button class="btn" v-on:click="changeMonth('before')"><ion-icon name="arrow-back-outline"></ion-icon></button></div>
+                                   <div><button class="btn" v-on:click="changeMonth('after')"><ion-icon name="arrow-forward-outline"></ion-icon></button></div>
+                               </div>
+                               <div class="col justify-content-center d-flex align-items-center">
+                                    <div><button class="btn button-blue" style="color: #fff" v-on:click="changeMonth('today')">Today</button></div>
+                               </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="calendar-body">
+                        <div class="row text-dark" style="background-color: #aeb6bf; margin: auto">
+                            <div class="col d-flex justify-content-center">
+                                Mon
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Tue
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Wed
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Thu
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Fri
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Sat
+                            </div>
+                            <div class="col d-flex justify-content-center">
+                                Sun
+                            </div>
+                        </div>
+                        <div class="row calendar-bg justify-content-center">
+                <div class="row" v-for="week in calendar_array">
+                    <div class="col day-container" v-for="day in week">
+                        <div class="day-content text-dark" style="background-color: #85929e" v-bind:class="{'bg-light': day.this_month}">
+                            <div class="column" style="height: 100%">
+                                <div class="col d-flex justify-content-between day-container-header" v-on:click="clickShowModal(day.id, day.day, day.month, day.year)">
+                                    <div><div class="event_plus text-success" v-if="day.month === month_">+</div></div>
+                                    <p class="p_number" v-bind:class="{'today_dot': isToday(day.year, day.month, day.day)}">[[day.day]]</p>
+                                </div>
+                                <hr style="margin: 0">
+                                <div class="col event-wrapper" v-if="day.events.length > 0">
+                                <div v-for="event in day.events" v-bind:class="{'event-longer': event.longer}" class="event">
+                                    <div class="event-content" v-if="event.parent" v-on:click="clickShowModalEvent(event.id, day.day, day.month, day.year)">
+                                        <p class="text-light" v-bind:class="{'event-normal': !event.bussy, 'event-bussy': event.bussy}">[[event.user]]</p>
+                                    </div>
+                                    <div class="event-content" v-else v-on:click="clickShowModalEvent(event.id, day.day, day.month, day.year)">
+                                        <p class="text-light" v-bind:class="{'event-normal': !event.bussy, 'event-bussy': event.bussy}">&nbsp;</p>
+                                    </div>
+                                    <div class="modal-event" :id="day.id" v-show="showModalEvent === event.id" style="cursor: auto !important">
+                                        <div class="modal-wrapper calendar-bg text-light">
+                                            <div class="modal-event-header d-flex justify-content-between">
+                                                <h1>[[event.title]]</h1>
+                                                <div class="close" v-on:click="showModalEvent = false">&times;</div>
+                                            </div>
+                                            <hr>
+                                            <div class="modal-event-body">
+                                                <div class="mb-3">
+                                                    <h3>Event Time</h3>
+                                                    <p>Start: [[event.start_date]]</p>
+                                                    <p>End: [[event.last_date]]</p>
+                                                    <hr>
+                                                    <h5>User</h5>
+                                                    <p>[[event.user]]</p>
+                                                </div>
+                                                <div class="d-flex justify-content-end">
+                                                    <a class="btn event-bussy text-light" v-on:click="delete_event(event.id)" v-if="Number(user_id) === Number(event.user_id)">Delete</a>
+                                                    <a class="btn btn-light ms-2" v-on:click="showModalEvent = false">Close</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        <div class="modal-event" :id="day.id" v-show="showModal === day.id">
+                            <div class="modal-wrapper calendar-bg text-light">
+                                <div class="modal-event-header d-flex justify-content-between">
+                                    <h1>Date: [[day.year]]-[[day.month]]-[[day.day]]</h1>
+                                    <div class="close" v-on:click="showModal = false">&times;</div>
+                                </div>
+                                <hr>
+                                <div class="modal-event-body">
+                                    <form v-on:submit="add_new_event">
+                                        <div>
+                                            <label class="form-label">Event Text</label>
+                                            <input class="form-control" type="text" name="text" v-model="textEvent"/>
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Days <div style="font-size: 0.8rem">(if events durration is more than one day, for example vacation)</div></label>
+                                            <input class="form-control" min="1" type="number" v-model="durration"/>
+                                        </div>
+                                        <div>
+                                            <label class="form-label me-2">Not available</label>
+                                            <input type="checkbox" name="checkbox" v-model="isBussy"/>
+                                        </div>
+                                        <hr>
+                                        <div>
+                                            <button type="submit" class="btn btn-success mt-2">Submit</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                    </div>
+                </div>
+                `
+        })
+        app.mount('#calendar-app')
+</script>
+{% endblock %}

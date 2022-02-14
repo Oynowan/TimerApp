@@ -1,0 +1,379 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% firstof user.get_full_name user.username %} | {% endblock %}
+{% load coreextras %}
+{% block content %}
+{% if request.user.userprofile.is_ceo or request.user.userprofile.is_hr %}
+    <section class="container-fluid mt-2">
+        <div class="col-md-12 d-flex justify-content-center">
+            <div class="alert bg-secondary" style="width: 60%">
+                <form class="form" method="post" action=".">
+                    {% csrf_token %}
+                    <input class="form-control" id="search" name="search" type="text" placeholder="Search for user...">
+                    <button type="submit" hidden></button>
+                </form>
+            </div>
+        </div>
+    </section>
+    {% endif %}   
+    <nav class="container-fluid mt-3" aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item">User</li>
+                        <li class="breadcrumb-item text-info">{% firstof user.get_full_name user.username %}</li>
+                    </ol>
+                </nav>
+    <section class="container-fluid mt-5" id="project-app">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-auto" >
+                        <img style="width: 64px; height: 64px;" src="{{ user.userprofile.get_avatar }}">
+                    </div>
+                    <div class="col-auto">
+                        <h3 class="mb-0">{% firstof user.get_full_name user.username %}</h3>
+                        <p>{{ user.email }}</p>
+                    </div>
+                </div>
+                {% if not user.userprofile.is_ceo%}
+                <div>
+                    Set HR for user: <switch-toggle enabled="{{user.userprofile.is_hr}}" user_id="{{user.id}}"></switch-toggle>
+                </div>
+                {% else %}
+                <div>
+                    CEO
+                </div>
+                {% endif %}
+            </div>
+        </div>
+            <hr>
+    </section>
+    <section class="container mt-5" id="dashApp">
+        <div class="column mt-5">
+            <!-- Working time for a choosen day -->
+            <div class="col">
+                <div class="column">
+                <div class="col alert alert-secondary">
+                    <h1>Time {% if num_days is 0 %}today{% else %}{{ date_user|date:'Y-m-d' }}{% endif %}</h1>
+                    <div>
+                        <form method="post" action=".">
+                            {% csrf_token %}
+                            <div class="d-flex">
+                                <input class="form-control me-3" style="width: auto" type="date" id="id_date" name="date" value="{{ date_user|date:'Y-m-d' }}">
+                                <button type="submit" class="btn button-blue">GO</button>
+                            </div>
+                        </form>
+                    </div>
+                {% if date_entries %}
+                    <div class="table-responsive" style="height: 100%">
+                        <table class="table  table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Task</th>
+                                    <th>Note</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in date_entries %}
+                                    <tr>
+                                        <td>{{ entry.project }}</td>
+                                        <td>{{ entry.task }}</td>
+                                        <td>{{ entry.note }}</td>
+                                        <td>{{ entry.minutes|format_minutes }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td>Total:</td>
+                                    <td>{{ time_for_user_and_date|format_minutes }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <p>No entries</p>
+                {% endif %}
+                <a href="?num_days={{ num_days|add:'1' }}" class="mt-4">Previous</a>
+                {%  if num_days > 0 %}
+                    <a href="?num_days={{ num_days|add:'-1' }}" class="mt-4">Next</a>
+                {% endif %}
+                </div>
+                <div class="col">
+                    <div class="alert alert-secondary">
+                    <h1>Untracked time</h1>
+                    {% if no_tracked_entries%}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Date
+                                </th>
+                                <th>
+                                    Worked time
+                                </th>
+                                <th>
+                                    Status
+                                </th>
+                                <th>
+
+                                </th>
+                                <th>
+
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in no_tracked_entries %}
+                                <tr>
+                                    <td>
+                                        {{ entry.created_at|date:'Y-m-d' }}
+                                    </td>
+                                    <td>
+                                        {{ entry.minutes|format_minutes }}
+                                    </td>
+                                    {% if entry.minutes == 0 %}
+                                    <td>
+                                        In progress
+                                    </td>
+                                        <td></td>
+                                        <td></td>
+                                {% else %}
+                                        <td>
+                                        Finished
+                                        </td>
+
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p>No untracked entries</p>
+                    {% endif %}
+                </div>
+                </div>
+            </div>
+                </div>
+            <div class="col">
+            <div class="row">
+                    <div class="col-md-9">
+                    <div class="alert alert-secondary">
+                        <h1>Time {% if user_num_months is 0 %}this month{% else %}{{ user_month|date:'Y-m' }}{% endif %}</h1>
+                    {% if time_for_user_and_month %}
+                        <div class="table-responsie">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Project</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in all_projects %}
+                                        <tr>
+                                            <td>{{ project.title }}</td>
+                                            <td>{{ project.time_for_user_and_project_and_month|format_minutes }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td>
+                                            <div class="text-primary">Total: {{ time_for_user_and_month|format_minutes }}</div>
+                                            {% if time_for_user_and_month_approved != 0 %}
+                                                <div class="text-success">Approved: {{ time_for_user_and_month_approved|format_minutes }}</div>
+                                            {% endif %}
+                                            {% if time_for_user_and_month_disapproved != 0 %}
+                                                <div class="text-danger">Disapproved: {{ time_for_user_and_month_disapproved|format_minutes }}</div>
+                                            {% endif %}
+                                            {% if time_for_user_and_month_waiting != 0 %}
+                                                <div style="color: #dd7f3c">Waiting: {{ time_for_user_and_month_waiting|format_minutes }}</div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p>No entries</p>
+                    {% endif %}
+                    <a href="?user_num_months={{ user_num_months|add:'1' }}" class="mt-4">Previous</a>
+                    {%  if user_num_months > 0 %}
+                        <a href="?user_num_months={{ user_num_months|add:'-1' }}" class="mt-4">Next</a>
+                    {% endif %}
+                    </div>
+                    <h1>Download logs for {% if user_num_months is 0 %}this month{% else %}{{ user_month|date:'Y-m' }}{% endif %}</h1>
+                    <div class="w-100 mb-5">
+                    <a href="{% url 'csv_file' user.id user_num_months%}" class="btn button-blue">Download</a>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <canvas id="myChart" width="200px" height="200px"></canvas>
+                    </div>
+                    </div>
+            </div>
+        </div>
+            <!-- Admin Acc -->
+    </section>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+            <style>
+        .trash ion-icon {
+            font-size: 1.5rem;
+            color: #c63434;
+        }
+        .switch-control {
+            position: relative;
+            display: inline-block;
+            height: 34px;
+            width: 60px;
+        }
+        .switch {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            height: 32px;
+            width: 100%;
+            border-radius: 34px;
+            background: #61d158;
+            cursor: pointer;
+            transition: all .4s;
+        }
+        .slider {
+            height: 26px;
+            width: 26px;
+            margin: 0px 4px;
+            background-color: #fff;
+            content: "";
+            border-radius: 50%;
+            transition: all .4s;
+        }
+        .turned_off {
+            transition: all .4s;
+            background: #f34e4e;
+        }
+        .slider_right {
+            transition: all .4s;
+            justify-content: end;
+        }
+        .disabled { 
+            pointer-events: none;
+        }
+        .active {
+            color: green
+        }
+        </style>
+{% endblock %}
+
+{% block script %}
+    <script>
+        var ctx = document.getElementById('myChart').getContext('2d');
+var myChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: {{ all_projects_title|safe }},
+        datasets: [{
+            label: 'time',
+            data: {{ all_projects_time|safe }},
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.2)',
+                'rgba(54, 162, 235, 0.2)',
+                'rgba(255, 206, 86, 0.2)',
+                'rgba(75, 192, 192, 0.2)',
+                'rgba(153, 102, 255, 0.2)',
+                'rgba(255, 159, 64, 0.2)',
+                'rgba( 0, 196, 39, 0.2)',
+                'rgba( 236, 45, 251, 0.2)',
+                'rgba( 202, 104, 22 , 0.2)',
+                'rgba( 22, 28, 202 , 0.2)',
+                'rgba(203, 34, 124 , 0.2)',
+                'rgba( 32, 179, 188  , 0.2)',
+                'rgba( 249, 249, 40 , 0.2)',
+                'rgba( 119, 249, 40 , 0.2)',
+                'rgba( 0, 140, 232 , 0.2)',
+                'rgba( 162, 162, 162  , 0.2)',
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba( 0, 196, 39, 1)',
+                'rgba( 236, 45, 251, 1)',
+                'rgba(202, 104, 22, 1)',
+                'rgba( 22, 28, 202, 1)',
+                'rgba( 203, 34, 124 , 1)',
+                'rgba( 32, 179, 188  , 1)',
+                'rgba( 249, 249, 40  , 1)',
+                'rgba( 119, 249, 40  , 1)',
+                'rgba(  0, 140, 232   , 1)',
+                'rgba( 162, 162, 162 , 1)',
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        legend: {
+            labels: {
+                fontColor: "#f8f9fa"
+            }
+        }
+    }
+});
+    </script>
+        <script>
+        const ProjectsApp = {
+            data() {
+                return {
+                }
+            },
+            delimiters: ['[[',']]'],
+        }
+
+        const app = Vue.createApp(ProjectsApp)
+
+        app.component('switch-toggle', {
+            props: {
+                enabled: String,
+                user_id: String
+            },
+            data() {
+                return {
+                    count: 0,
+                    isEnabled: this.enabled === 'True' ? true : false,
+                    disabled: false,
+                }
+            },
+            delimiters: ['[[', ']]'],
+            methods: {
+                toggleF() {
+                    this.isEnabled = !this.isEnabled
+                    this.disabled = true
+                    
+                    fetch('/api/set_hr/?user_id='+this.user_id, {
+                        method: 'GET',
+                        headers: {
+                            "Content-Type": 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        this.disabled = false
+                    })
+                }
+            },
+            template: `
+                <div class="switch-control">
+                    <div class="switch" :class="{ turned_off: !isEnabled, slider_right: !isEnabled, disabled: disabled }" @click="toggleF">
+                        <div class="slider"></div>
+                    </div>
+                </div>
+                `
+        })
+        app.mount('#project-app')
+        //Vue.createApp(ProjectsApp).mount('#project-app')
+    </script>
+{% endblock %}

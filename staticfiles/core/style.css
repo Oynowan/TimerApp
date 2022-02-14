@@ -1,0 +1,8 @@
+/* NAVBAR */
+
+.hamburger div {
+    width: 20px;
+    height: 3px;
+    background: #fff;
+}
+

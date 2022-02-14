@@ -1,0 +1,314 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ project.title }} | {% endblock %}
+{% load coreextras %}
+{% block content %}
+<div id="project-app">
+    <nav class="container-fluid mt-5" aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project:projects' %}">Projects</a></li>
+            <li class="breadcrumb-item text-info">{{ project.title }}</li>
+        </ol>
+    </nav>
+    <section class="container">
+        <div class="row justify-content-between" style="flex-wrap: nowrap">
+            <div class="col" style="display: flex; flex-direction: column; justify-content: space-between">
+                <div>
+                    <h2 class="h4">{{ project.team.title }}</h2>
+                    <h1 class="h1">Project: {{ project.title }}</h1>
+                </div>
+                <div class="mt-5" style="display: flex">
+                    {% if request.user.userprofile.is_ceo or request.user.userprofile.is_hr %}
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" type="button" data-bs-target="#projectModal">Add new task</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col">
+                    <div class="col d-flex justify-content-between">
+                        <h1 class="mt-0">Details</h1>
+                        {% if request.user.userprofile.is_ceo %}
+                            <div>
+                                <a class="btn btn-danger" data-bs-toggle="modal" type="button" data-bs-target="#deleteModal{{ project.id }}"><ion-icon name="trash-bin-outline"></ion-icon></a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                    <hr>
+                        <div class="row">
+                            <div class="col-4">
+                                Project
+                            </div>
+                            <div class="col-8">{{ project.title }}</div>
+                        </div>
+                            </div>
+                        <div class="row">
+                            <div class="col-4">
+                                Client's Name
+                            </div>
+                            <div class="col-8">-----</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-4">
+                                Description
+                            </div>
+                            <div class="col-8">
+                                <button type="button" class="btn btn-sm btn-light" data-bs-placement="bottom" data-bs-toggle="popover" title="Project" data-bs-content="{{ project.description }}">
+                                    Click
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-4">
+                                Created By
+                            </div>
+                            <div class="col-8">{% firstof project.created_by.get_full_name project.created_by.username%}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-4">
+                                Created at
+                            </div>
+                            <div class="col-8">{{ project.created_at }}</div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-4">
+                                <h5>ON/OFF</h5>
+                            </div>
+                            <div class="col-8">
+                            {% if request.user.userprofile.is_ceo or request.user.userprofile.is_hr %}
+                                <switch-toggle enabled="{{project.active}}" project_id="{{project.id}}"></switch-toggle>
+                            {% else %}
+                                {% if project.active %}
+                                    <h5 style="color: green">ACTIVE</h5>
+                                {% else %}
+                                    <h5 style="color: red">NOT ACTIVATE</h5>
+                                {% endif %}
+                            {% endif %}
+                            </div>
+                        </div>
+                </div>
+            </div>
+        <hr>
+    </section>
+        <section class="container">
+        <div class="row mt-3">
+            <h1 class="display-5">Tasks</h1>
+        {% if tasks%}
+            
+                <div class="alert bg-dark">
+            <table class="table table-dark table-hover">
+                <thead>
+                    <tr>
+                        <th>
+                            Project title
+                        </th>
+                        <th>
+                            Registered Time
+                        </th>
+                        <th>
+                            Status
+                        </th>
+                        <th>
+                            Details
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td>
+                            {{ task.title }}
+                        </td>
+                        <td>
+                            {{ task.registered_time|format_minutes }}
+                        </td>
+                        {% if task.status %}
+                        <td class="text-success">
+                            Todo
+                        </td>
+                        {% else %}
+                        <td class="text-primary">
+                            Done
+                        </td>
+                        {% endif %}
+                        <td>
+                            <a href="{% url 'project:task_detail' project.id task.id %}" class="btn btn-info btn-sm">Details</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+                <div class="col">
+                    <h3>No tasks yet..</h3>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+     <div class="modal fade text-dark" id="projectModal">
+        <div class="modal-dialog">
+            <form method="post" action="." @submit="validateForm" novalidate>
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add new task</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <div v-if="errors.length" class="alert alert-danger d-block">
+                                <p v-for="error in errors">[[error]]</p>
+                            </div>
+                            <label class="form-label">Title<span style="color: red">*</span></label>
+                            <input class="form-control" type="text" name="title" id="id_title" v-model="title">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success" v-bind:class="{disabled: maxCharacters}">Submit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="modal fade text-dark" id="deleteModal{{ project.id }}">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure that you want to delete <b>{{ project.title }}</b> project?<br>You can't restore it after!</p>
+                    <p>All tasks and entries in that project will be deleted too.</p>
+                </div>
+                <div class="modal-footer">
+                    <a class="btn btn-danger" href="{% url 'project:delete_project' project.id %}">Yes</a>
+                    <a class="btn btn-light" aria-label="Close" data-bs-dismiss="modal">No</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+        <style>
+        .trash ion-icon {
+            font-size: 1.5rem;
+            color: #c63434;
+        }
+        .switch-control {
+            position: relative;
+            display: inline-block;
+            height: 34px;
+            width: 60px;
+        }
+        .switch {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            height: 32px;
+            width: 100%;
+            border-radius: 34px;
+            background: #61d158;
+            cursor: pointer;
+            transition: all .4s;
+        }
+        .slider {
+            height: 26px;
+            width: 26px;
+            margin: 0px 4px;
+            background-color: #fff;
+            content: "";
+            border-radius: 50%;
+            transition: all .4s;
+        }
+        .turned_off {
+            transition: all .4s;
+            background: #f34e4e;
+        }
+        .slider_right {
+            transition: all .4s;
+            justify-content: end;
+        }
+        .disabled { 
+            pointer-events: none;
+        }
+        .active {
+            color: green
+        }
+        </style>
+{% endblock %}
+{% block script %}
+    <script>
+        const ProjectsApp = {
+            data() {
+                return {
+                    showAddProjectModal: true,
+                    title: '',
+                    showError: false,
+                    errors: [],
+                }
+            },
+            delimiters: ['[[',']]'],
+            methods: {
+                validateForm(e) {
+                    if (!this.title) {
+                        this.errors.push('Title can\'t be empty!')
+                    }
+                    if (this.errors.length) {
+                        this.showError = true
+
+                        e.preventDefault()
+
+                        return false
+                    } else {
+                        return true
+                    }
+                },
+            }
+        }
+
+        const app = Vue.createApp(ProjectsApp)
+
+        app.component('switch-toggle', {
+            props: {
+                enabled: String,
+                project_id: String
+            },
+            data() {
+                return {
+                    count: 0,
+                    isEnabled: this.enabled === 'True' ? true : false,
+                    disabled: false,
+                }
+            },
+            delimiters: ['[[', ']]'],
+            methods: {
+                toggleF() {
+                    this.isEnabled = !this.isEnabled
+                    this.disabled = true
+                    
+                    fetch('/api/active_project/?project_id='+this.project_id, {
+                        method: 'GET',
+                        headers: {
+                            "Content-Type": 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        this.disabled = false
+                    })
+                }
+            },
+            template: `
+                <div class="switch-control">
+                    <div class="switch" :class="{ turned_off: !isEnabled, slider_right: !isEnabled, disabled: disabled }" @click="toggleF">
+                        <div class="slider"></div>
+                    </div>
+                </div>
+                `
+        })
+        app.mount('#project-app')
+        //Vue.createApp(ProjectsApp).mount('#project-app')
+    </script>
+{% endblock %}

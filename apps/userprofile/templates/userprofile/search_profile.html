@@ -1,0 +1,62 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Search | {% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row">
+            <div class="col-md-6">
+                <h1 class="display-2">Search profile</h1>
+            </div>
+            <hr>
+        </div>
+    </section>
+    <section class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <form class="form w-100" method="post" action=".">
+                        {% csrf_token %}
+                        <div class="alert bg-secondary d-flex">
+                        <input class="form-control" id="search" name="search" type="text" placeholder="{{ search }}">
+                            </div>
+                        <button type="submit" hidden></button>
+                    </form>
+                {% if profiles %}
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Full Name
+                                </th>
+                                <th>
+                                    E-mail
+                                </th>
+                                <th>
+                                    Profile
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for profile in profiles %}
+                            <tr>
+                                <td>
+                                    {% firstof profile.get_full_name profile.username %}
+                                </td>
+                                <td>
+                                    {{ profile.username }}
+                                </td>
+                                <td>
+                                    <a class="btn btn-info" href="{% url 'users_profile' profile.id %}">Profile</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <hr>
+                    <p>No profile match query</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

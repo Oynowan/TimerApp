@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- META -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Title -->
+    <title>{% block title %}{% endblock %}BV-Timer</title>
+    <!-- Bootstrap css -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+    <!-- My style.css -->
+    {% load static %}
+    <link href="{% static 'normalize.css' %}" rel="stylesheet" type="text/css">
+</head>
+<body :class="{modal-open: modalOpen}">
+<div id="timer-app">
+    <nav class="navbar navbar-expand-lg bg-dark">
+        <div class="container-fluid">
+            <a href="{% url 'dashboard' %}" class="navbar-brand">
+                BV-TIMER
+            </a>
+                <button class="navbar-toggler hamburger" type="button" data-bs-toggle="collapse" data-bs-target="#navBar" aria-controls="navBar" aria-expanded="false" aria-label="Toggle navigation">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navBar">
+                <ul class="navbar-nav d-flex align-items-center">
+                        {% if request.user.userprofile.is_ceo or request.user.userprofile.is_hr %}
+                        <template v-if="waiting_entries > 0">
+                            <li class="nav-item me-5">
+                                <a class="btn btn-info" href="{% url 'waiting_entries' %}">New entries([[waiting_entries]])</a>
+                            </li>
+                        </template>
+                        {% endif %}
+                        <template v-if="!trackingTime">
+                            <li class="nav-item">
+                                <button class="btn btn-success me-5" type="button" @click="showModalStartF()" >
+                                <!--<a class="btn btn-success me-5" @click="startTimer()">-->
+                                    <ion-icon name="stopwatch-outline"></ion-icon>(start)
+                                </button>
+                            </li>
+                        </template>
+                        <template v-if="trackingTime">
+                            <li class="nav-item">
+                                <button class="btn btn-warning me-5 ms-5" @click="stopTimer()" type="button" :disabled="isDisabled">
+                                    <ion-icon name="stopwatch-outline"></ion-icon> [[readableSeconds]] [[stopBtn]] [[readableSetSeconds]]
+                                </button>
+                            </li>
+                        </template>
+                    <li class="nav-item">
+                        <a href="{% url 'myaccount' %}" class="nav-link"><ion-icon name="person-outline" style="color: white"></ion-icon> {% firstof request.user.get_full_name request.user.username %}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'project:projects' %}" class="nav-link ms-1 me-1">Projects</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="modal fade" :class="{ show: showModalStop }" tabindex="-1" id="stopTimerModal" aria-labelledby="stopTimerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                        <h5 class="modal-title" id="stopTimerModalLabel">Timer</h5>
+                </div>
+                <div class="modal-body">
+                    <p>You have set time for <b>[[setSeconds]]</b> and tracked <b>[[endSeconds]]</b>.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn button-blue" @click="addToTask()">Add to task</button>
+                    <button class="btn btn-success" @click="addLater()" type="button">Add later</button>
+                    <button class="btn btn-danger" @click="discardTimer()" type="button">Discard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" :class="{show: showModalStart}" tabindex="-1" id="startTimerModal" aria-labelledby="startTimerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                        <h5 class="modal-title" id="stopTimerModalLabel">Set approximate working time</h5>
+                        <button type="button" class="btn-close"  @click="closeModalStart()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-center">
+                        <select class="form-select" v-bind:class="{'border-danger': timeValid}" name="hours" v-model="hours" style="width: 50%">
+                            <option value="0"{% if hours == 0  %} selected{% endif %}>0h</option>
+                            {% for i in 'x'|rjust:'23' %}
+                                <option value="{{ forloop.counter }}" {% if hours == forloop.counter %} selected{% endif %}>{{ forloop.counter }}h</option>
+                            {% endfor %}
+                        </select>
+                        <select class="form-select" v-bind:class="{'border-danger': timeValid}" name="minutes" v-model="minutes" style="width: 50%">
+                            <option value="0"{% if minutes == 0  %} selected{% endif %}>0m</option>
+                            {% for i in 'x'|rjust:'59' %}
+                                <option value="{{ forloop.counter }}" {% if minutes == forloop.counter %} selected{% endif %}>{{ forloop.counter }}m</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <p>Timer will automatically stop after set time.</p>
+                    <button class="btn btn-primary" @click="startTimer()" :disabled="isDisabled">[[startBtn]]</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="fade" :class="{show: showModal, 'modal-backdrop': modalBackdrop}"></div>
+</div>
+{% if request.user.first_name == '' or request.user.last_name == '' %}
+<div class="alert alert-warning">
+    Click <a href="{% url 'edit_profile' %}" style="text-decoration: none"><b>HERE</b></a> to setup your account.
+</div>
+{% endif %}
+{%  if messages %}
+    {% for message in messages %}
+        <div class="alert alert-info">
+        {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+<style>
+
+    body {
+        background: #444c54
+    }
+    .hamburger div {
+        width: 30px;
+        height: 2px;
+        margin: .5rem;
+        background: #fff;
+}
+    .navbar a {
+        color: #fff;
+    }
+    .navbar a:hover {
+        color: #2f9eea;
+    }
+
+    .button-blue {
+            background-color:   #2e86c1 !important;
+            color: #fff !important
+    }
+    .button-blue:hover {
+        color: #fff
+    }
+
+    .flex-wrapper {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    #loader img {
+            height: 38px;
+        }
+    .show {
+        display: block !important;
+    }
+    .breadcrumb a {
+        text-decoration: none;
+        color: #fff
+    }
+    @media (max-width: 767px) {
+        * {
+            font-size: 10px;
+        }
+    }
+    @media (max-width: 991px) {
+        .navbar-nav {
+            align-items: end !important;
+        }
+        li.nav-item:nth-child(1),
+        li.nav-item:nth-child(2) {
+            margin-right: 0px !important;
+        }
+        li.nav-item:nth-child(2) {
+            align-self: center !important;
+        }
+        li.nav-item:nth-child(1) {
+            align-self: start !important;
+        }
+        li.nav-item:nth-child(3) {
+            align-self: end !important;
+        }
+        li.nav-item:nth-child(3) {
+            align-self: end !important;
+        }
+
+    }
+</style>
+<div class="flex-wrapper">
+    <div class="text-light" style="padding: 0; margin: 0; width: 100%;">
+{% block content %}
+{% endblock %}
+    </div>
+    <footer style="">
+        <div class="bg-dark" style="width: 100%;">
+            <div class="container">
+                <div class="row">
+                    <div class="col-12">
+                        <p class="text-light" style="text-align: center; font-size: 0.8rem">Copyright &copy; 2021 Kamil Staniszewski</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>
+<!-- IonIcons -->
+<script src="https://unpkg.com/ionicons@5.4.0/dist/ionicons.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+<!-- Popover -->
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<!-- VueJs -->
+<script src="https://unpkg.com/vue@next"></script>
+<!-- axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<!-- Scripts -->
+<script>
+    var NavbarApp = {
+        data() {
+            return {
+                seconds: {{ active_entry_seconds }},
+                set_minutes: {{ set_minutes }},
+                endSeconds: 0,
+                setSeconds: 0,
+                trackingTime: false,
+                showTrackingModal: false,
+                timer: null,
+                entryID: 0,
+                startTime: '{{ start_time }}',
+                hours: 8,
+                minutes: 0,
+                waiting_entries: 0,
+                showModalStop: false,
+                showModalStart: false,
+                modalOpen: false,
+                modalBackdrop: false,
+                showModal: false,
+                startBtn: 'Start',
+                stopBtn: ' (stop) | Set Timer: ',
+                isDisabled: false,
+                timeValid: false
+            }
+        },
+        delimiters: ['[[', ']]'],
+        methods: {
+            startTimer() {
+                if (this.checkValid()) {
+                    this.startBtn = 'Starting...'
+                    this.isDisabled = true
+                    fetch('/api/start_timer/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify({
+                            set_times: (Number(this.hours)*60)+Number(this.minutes),
+                        })
+                    })
+                        .then((response) => {
+                        return response.json()
+                    })
+                        .then((data)=> {
+                            this.set_minutes = data.set_minutes
+                        })
+                    .then((result) => {
+                        this.startTime = new Date()
+                        this.trackingTime = true
+                        this.closeModalStart()
+                        this.startBtn = 'Start'
+                        this.isDisabled = false
+
+                        this.timer = setInterval(() => {
+                            this.seconds = (new Date() - this.startTime) / 1000
+                            if((Number(this.seconds)) >= (Number(this.set_minutes)*60)) {
+                                this.stopTimer();
+                            }
+                        }, 1000)
+                    })
+                }
+            },
+            stopTimer() {
+                this.stopBtn = "Stopping..."
+                this.isDisabled = true
+                window.clearTimeout(this.timer)
+                this.timer = null
+                fetch('/api/stop_timer/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then((response) => {
+                    return response.json()
+                })
+                .then((result) => {
+                    this.showModalStopF()
+
+                    this.entryID = result.entryID
+                    this.showTrackingModal = true
+                    this.trackingTime = false
+                    this.isDisabled = false
+
+                    
+                    this.stopBtn =' (stop) | Set Timer: '
+                })
+            },
+            discardTimer() {
+                fetch('/api/discard_timer/', {
+                    method: 'POST',
+                    headers: {
+                        'Content_Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                })
+                .then((response) => {
+                    this.closeModalStop()
+                    this.seconds = 0
+                    this.showTrackingModal = false
+                })
+            },
+            addLater() {
+                location.reload()
+                this.seconds = 0
+                this.showTrackingModal = false
+            },
+            addToTask() {
+                window.location.href = '/track_entry/' + this.entryID + '/'
+            },
+            getWaitingEntries() {
+                fetch('/api/get_entries/', {
+                    method: 'GET',
+                    headers: {
+                        'Content_Type': 'application/json'
+                    }
+                })
+                .then((response) => {
+                    return response.json()
+                })
+                .then((result)=> {
+                    this.waiting_entries = result.entries
+                })
+            },
+            closeModalStop() {
+                this.modalBackdrop = false
+                this.showModalStop = false
+                this.modalOpen = false
+                this.showModal = false
+            },
+            closeModalStart() {
+                this.modalBackdrop = false
+                this.showModalStart = false
+                this.modalOpen = false
+                this.showModal = false
+            },
+            showModalStopF() {
+                this.modalBackdrop = true
+                this.showModalStop = true
+                this.modalOpen = true
+                this.showModal = true
+            },
+            showModalStartF() {
+                this.modalBackdrop = true
+                this.showModalStart = true
+                this.modalOpen = true
+                this.showModal = true
+            },
+            checkValid() {
+                if (Number(this.hours) === 0 && Number(this.minutes) === 0) {
+                    this.timeValid = true
+                    return false
+                }
+                return true
+            }
+
+        },
+        mounted() {
+            this.getWaitingEntries();
+            if (this.seconds !== 0) {
+                this.trackingTime = true
+                this.timer = setInterval(() => {
+                    this.seconds = (new Date() - new Date(this.startTime)) / 1000;
+                        if((Number(this.seconds)) >= (Number(this.set_minutes)*60)) {
+                            this.stopTimer();
+                        }
+                }, 1000)
+            }
+        },
+        computed: {
+            readableSeconds() {
+                const d = Number(this.seconds);
+                const h = Math.floor(d / 3600);
+                const m = Math.floor(d % 3600 / 60);
+                const s = Math.floor(d % 3600 % 60);
+
+                const hDisplay = h > 0 ? h + (h === 1 ? 'h ' : 'h ') : '';
+                const mDisplay = m > 0 ? m + (m === 1 ? 'm ' : 'm ') : '';
+                const sDisplay = s > 0 ? s + (s === 1 ? 's ' : 's ') : '';
+
+                if (this.timer === null) {
+                    this.endSeconds = hDisplay + mDisplay + sDisplay
+                    return ""
+                }
+
+                return hDisplay + mDisplay + sDisplay
+            },
+            readableSetSeconds() {
+                const d = Number(this.set_minutes)*60;
+                const h = Math.floor(d / 3600);
+                const m = Math.floor(d % 3600 / 60);
+
+                const hDisplay = h > 0 ? h + (h === 1 ? 'h ' : 'h ') : '';
+                const mDisplay = m > 0 ? m + (m === 1 ? 'm ' : 'm ') : '';
+
+                if (this.timer === null) {
+                    this.setSeconds = hDisplay + mDisplay
+                    return ""
+                }
+
+                return hDisplay + mDisplay
+            },
+        },
+    }
+
+    Vue.createApp(NavbarApp).mount('#timer-app');
+
+</script>
+
+{% block script %}
+{% endblock %}
+
+    <script>
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl)
+        })
+
+    </script>
+    </body>
+</html>

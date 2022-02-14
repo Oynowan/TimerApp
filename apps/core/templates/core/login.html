@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log in</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+
+</head>
+<body class="bg-dark">
+<section class="container">
+        {%  if messages %}
+        {% for message in messages %}
+            <div class="alert alert-info">
+            {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    <div class="row justify-content-center align-items-center vh-100">
+        <div class="col-sm-6 alert alert-secondary">
+            <div>
+                <h1 class="text-center">BV-TIMER</h1>
+                <p class="text-center">Login</p>
+                <form method="post" action="." class="form" v-on:submit="validateForm()">
+                    {% csrf_token %}
+                    <div>
+                        <label class="form-label" for="id_username">
+                            Email
+                        </label>
+                        <input class="form-control" id="id_username" name="username" type="username" v-model="username">
+                    </div>
+                    <div>
+                        <label class="form-label" for="id_password">
+                            Password
+                        </label>
+                        <input class="form-control" id="id_password" name="password" type="password" v-model="password1">
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-secondary mt-1">Login</button>
+                    </div>
+                </form>
+            </div>
+            <div><a href="{% url 'password_reset' %}">Forgot Password</a></div>
+        </div>
+    </div>
+</section>
+<style>
+    a {
+        text-decoration: none;
+    }
+    a:hover {
+    }
+</style>
+</body>
+</html>

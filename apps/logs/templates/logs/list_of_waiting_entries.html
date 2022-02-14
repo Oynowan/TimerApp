@@ -1,0 +1,100 @@
+{% extends 'core/base.html' %}
+
+{% block title %}List of waiting entries{% endblock %}
+{% load coreextras %}
+{% block content %}
+<nav class="container-fluid mt-5" aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item text-info">List of waiting entries</li>
+        </ol>
+    </nav>
+    <section class="container">
+        <div class="row">
+            <div class="col d-flex justify-content-between">
+                <div>
+                    <h1 class="h4">Team {{ team.title }}</h1>
+                    <h1 class="h1">List of waiting entries</h1>
+                </div>
+                <div>
+                    <a class="btn btn-success" href="{% url 'approve_all_entries' %}">Approve All</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    <hr>
+    <section class="container" id="check_entries_app">
+        <div class="row">
+            {% for entry in entries %}
+                <div class="col-md-4">
+                <div></div>
+                    <div class="alert alert-secondary">
+                        <div class="d-flex justify-content-between">
+                            <h1 class="mt-0">{{ entry.title }}</h1>
+                        </div>
+                        <p style="text-align: center"><b>{% firstof entry.created_by.get_full_name entry.created_by.username %}</b></p>
+                        <p><b>Project:</b> {{ entry.project.title }}</p>
+                        <p><b>Task:</b> {{ entry.task.title }}</p>
+                        <p><b>Date:</b> {{ entry.created_at|date:'Y-m-d' }}</p>
+                        <p><b>Time:</b> {{ entry.minutes|format_minutes }}</p>
+                        <p><b>Note:</b> {{ entry.note }}</p>
+
+                        <div class="d-flex justify-content-between ms-5 me-5">
+                            <button @click="approveEntry({{ entry.id }})" class="btn btn-success">Approve</button>
+                            <button @click="disapproveEntry({{ entry.id }})" class="btn btn-danger">Disapprove</button>
+                        </div>
+                    </div>
+                </div>
+        {% endfor %}
+        </div>
+    </section>
+{% endblock %}
+
+{% block script %}
+<script>
+    const CheckEntriesApp = {
+        data() {
+            return {
+            }
+        },
+        delimiters: ['[[', ']]'],
+        methods: {
+            approveEntry(entry_id) {
+                fetch('/api/check_entry/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        entry_id: entry_id,
+                        approve: true
+                    })
+                })
+                    .then((response) => {
+                        location.reload()
+                    return response.json()
+                })
+            },
+            disapproveEntry(entry_id) {
+                fetch('/api/check_entry/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        entry_id: entry_id,
+                        approve: false
+                    })
+                })
+                    .then((response) => {
+                        location.reload()
+                    return response.json()
+                })
+            }
+        }
+    }
+    Vue.createApp(CheckEntriesApp).mount('#check_entries_app')
+</script>
+{% endblock %}
